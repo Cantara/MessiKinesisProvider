@@ -1,0 +1,2 @@
+no.cantara.messi.kinesis.KinesisMessiClientFactory
+no.cantara.messi.kinesis.simulator.KinesisSimulatorMessiClientFactory
