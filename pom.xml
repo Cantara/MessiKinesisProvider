@@ -14,6 +14,8 @@
 
     <properties>
         <module.build.sourceEncoding>UTF-8</module.build.sourceEncoding>
+        <jackson.version>2.13.0</jackson.version>
+        <protobuf-java.version>3.19.1</protobuf-java.version>
     </properties>
 
     <licenses>
@@ -34,9 +36,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/Cantara/MessiS3Provider.git</connection>
-        <developerConnection>scm:git:git@github.com:Cantara/MessiS3Provider.git</developerConnection>
-        <url>https://github.com/Cantara/MessiS3Provider/tree/master</url>
+        <connection>scm:git:git://github.com/Cantara/MessiKinesisProvider.git</connection>
+        <developerConnection>scm:git:git@github.com:Cantara/MessiKinesisProvider.git</developerConnection>
+        <url>https://github.com/Cantara/MessiKinesisProvider/tree/master</url>
         <tag>HEAD</tag>
     </scm>
 
@@ -60,12 +62,12 @@
         <dependency>
             <groupId>no.cantara.messi</groupId>
             <artifactId>messi-sdk</artifactId>
-            <version>0.3-SNAPSHOT</version>
+            <version>0.4</version>
         </dependency>
         <dependency>
             <groupId>no.cantara.config</groupId>
             <artifactId>property-config</artifactId>
-            <version>0.8.0</version>
+            <version>0.8.1</version>
         </dependency>
         <dependency>
             <groupId>de.huxhorn.sulky</groupId>
@@ -80,27 +82,27 @@
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
-            <version>2.12.5</version>
+            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>2.12.5</version>
+            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.12.5</version>
+            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>3.17.3</version>
+            <version>${protobuf-java.version}</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.2.5</version>
+            <version>1.2.6</version>
             <scope>test</scope>
         </dependency>
         <dependency>
