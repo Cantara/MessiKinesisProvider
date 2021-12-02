@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.ExpiredIteratorException;
 import software.amazon.awssdk.services.kinesis.model.GetRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.GetRecordsResponse;
 import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
@@ -30,6 +31,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 
 public class KinesisStreamingBuffer implements AutoCloseable {
 
@@ -51,7 +53,7 @@ public class KinesisStreamingBuffer implements AutoCloseable {
     final BlockingQueue<MessiMessage> messageBuffer = new ArrayBlockingQueue<>(2 * LIMIT);
 
     final Object lock = new Object(); // protects members that are not thread-safe
-    String nextShardIterator;
+    Supplier<String> nextShardIteratorSupplier;
     GetRecordsRequest pendingRecordsRequest;
     CompletableFuture<GetRecordsResponse> pendingRecordsResponse;
     ScheduledFuture<?> scheduledFuture; // next task that will run after delay
@@ -63,7 +65,7 @@ public class KinesisStreamingBuffer implements AutoCloseable {
         this.shardId = shardId;
         this.pollIntervalMs = pollIntervalMs;
         this.atUlidTimestampTolerance = atUlidTimestampTolerance;
-        this.nextShardIterator = getShardIterator(streamName, initialPosition);
+        this.nextShardIteratorSupplier = () -> getShardIterator(streamName, initialPosition);
     }
 
     public MessiMessage poll(int timeout, TimeUnit timeUnit) throws InterruptedException {
@@ -91,7 +93,7 @@ public class KinesisStreamingBuffer implements AutoCloseable {
                 // no pending requests and there is available space in buffer
 
                 pendingRecordsRequest = GetRecordsRequest.builder()
-                        .shardIterator(nextShardIterator)
+                        .shardIterator(nextShardIteratorSupplier.get())
                         .limit(LIMIT)
                         .build();
 
@@ -113,6 +115,10 @@ public class KinesisStreamingBuffer implements AutoCloseable {
                 }
                 try {
                     if (throwable != null) {
+                        if (throwable instanceof ExpiredIteratorException) {
+                            log.info("Kinesis shard-iterator expired, trying again.");
+                            return response;
+                        }
                         log.error(String.format("While handling Kinesis get-records response. shardId=%s, shardIterator=%s",
                                 shardId, pendingRecordsRequest.shardIterator()), throwable);
                         return response;
@@ -171,7 +177,8 @@ public class KinesisStreamingBuffer implements AutoCloseable {
 
                     log.trace("Added messages to buffer: count={}", messages.size());
 
-                    nextShardIterator = response.nextShardIterator();
+                    final String shardIterator = response.nextShardIterator();
+                    nextShardIteratorSupplier = () -> shardIterator;
 
                     return response;
 
@@ -268,7 +275,7 @@ public class KinesisStreamingBuffer implements AutoCloseable {
 
         messageBuffer.clear();
 
-        this.nextShardIterator = getShardIterator(streamName, cursor);
+        this.nextShardIteratorSupplier = () -> getShardIterator(streamName, cursor);
 
         triggerAsyncFill();
     }
