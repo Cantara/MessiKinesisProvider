@@ -68,4 +68,10 @@ class KinesisShardStream {
         }
         return result;
     }
+
+    public int messagesBehindCurrent(String sequenceNumber) {
+        int index = Integer.parseInt(sequenceNumber);
+        int behind = records.size() - index - 1;
+        return behind;
+    }
 }

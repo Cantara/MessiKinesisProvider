@@ -184,6 +184,7 @@ public class KinesisAsyncClientSimulator implements KinesisAsyncClient {
         return CompletableFuture.completedFuture(responseBuilder
                 .records(records)
                 .nextShardIterator(nextShardIterator)
+                .millisBehindLatest(1000L * kinesisStream.messagesBehindCurrent(nextSequenceAfter))
                 .build());
     }
 
