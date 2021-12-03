@@ -26,8 +26,8 @@ import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -54,9 +54,10 @@ public class KinesisStreamingBuffer implements AutoCloseable {
 
     final Object lock = new Object(); // protects members that are not thread-safe
     Supplier<String> nextShardIteratorSupplier;
+    String nextShardIterator;
     GetRecordsRequest pendingRecordsRequest;
     CompletableFuture<GetRecordsResponse> pendingRecordsResponse;
-    ScheduledFuture<?> scheduledFuture; // next task that will run after delay
+    Future<?> scheduledFuture; // next task that will run after delay
 
     KinesisStreamingBuffer(ScheduledExecutorService scheduledExecutor, KinesisAsyncClient kinesisAsyncClient, String streamName, String shardId, int pollIntervalMs, Duration atUlidTimestampTolerance, KinesisMessiCursor initialPosition) {
         this.scheduledExecutor = scheduledExecutor;
@@ -66,6 +67,7 @@ public class KinesisStreamingBuffer implements AutoCloseable {
         this.pollIntervalMs = pollIntervalMs;
         this.atUlidTimestampTolerance = atUlidTimestampTolerance;
         this.nextShardIteratorSupplier = () -> getShardIterator(streamName, initialPosition);
+        this.nextShardIterator = nextShardIteratorSupplier.get();
     }
 
     public MessiMessage poll(int timeout, TimeUnit timeUnit) throws InterruptedException {
@@ -93,7 +95,7 @@ public class KinesisStreamingBuffer implements AutoCloseable {
                 // no pending requests and there is available space in buffer
 
                 pendingRecordsRequest = GetRecordsRequest.builder()
-                        .shardIterator(nextShardIteratorSupplier.get())
+                        .shardIterator(nextShardIterator)
                         .limit(LIMIT)
                         .build();
 
@@ -117,6 +119,7 @@ public class KinesisStreamingBuffer implements AutoCloseable {
                     if (throwable != null) {
                         if (throwable instanceof ExpiredIteratorException) {
                             log.info("Kinesis shard-iterator expired, trying again.");
+                            nextShardIterator = nextShardIteratorSupplier.get();
                             return response;
                         }
                         log.error(String.format("While handling Kinesis get-records response. shardId=%s, shardIterator=%s",
@@ -132,8 +135,21 @@ public class KinesisStreamingBuffer implements AutoCloseable {
                     if (!response.hasRecords() || response.records().size() == 0) {
                         // no records consumed, Kinesis stream has no more records
 
-                        // attempt to read more messages again after a small delay
-                        scheduledFuture = scheduledExecutor.schedule(this::triggerAsyncFill, pollIntervalMs, TimeUnit.MILLISECONDS);
+                        final String shardIterator = response.nextShardIterator();
+                        if (shardIterator != null) {
+                            nextShardIteratorSupplier = () -> shardIterator;
+                            nextShardIterator = shardIterator;
+                        } else {
+                            log.error("Got NULL instead of next-shard iterator, we will use the same shard-iterator again.");
+                        }
+
+                        long millisBehindLatest = response.millisBehindLatest();
+
+                        if (millisBehindLatest < pollIntervalMs) {
+                            scheduledFuture = scheduledExecutor.schedule(this::triggerAsyncFill, pollIntervalMs - millisBehindLatest, TimeUnit.MILLISECONDS);
+                        } else {
+                            scheduledFuture = scheduledExecutor.submit(this::triggerAsyncFill);
+                        }
 
                         return response;
                     }
@@ -179,6 +195,7 @@ public class KinesisStreamingBuffer implements AutoCloseable {
 
                     final String shardIterator = response.nextShardIterator();
                     nextShardIteratorSupplier = () -> shardIterator;
+                    nextShardIterator = shardIterator;
 
                     return response;
 
@@ -276,6 +293,7 @@ public class KinesisStreamingBuffer implements AutoCloseable {
         messageBuffer.clear();
 
         this.nextShardIteratorSupplier = () -> getShardIterator(streamName, cursor);
+        this.nextShardIterator = nextShardIteratorSupplier.get();
 
         triggerAsyncFill();
     }
