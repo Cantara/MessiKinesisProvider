@@ -1,9 +1,11 @@
 package no.cantara.messi.kinesis;
 
+import de.huxhorn.sulky.ulid.ULID;
 import no.cantara.messi.api.MessiClosedException;
 import no.cantara.messi.api.MessiProducer;
 import no.cantara.messi.api.MessiULIDUtils;
 import no.cantara.messi.protos.MessiMessage;
+import no.cantara.messi.protos.MessiUlid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.SdkBytes;
@@ -17,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class KinesisMessiProducer implements MessiProducer {
 
@@ -26,6 +29,8 @@ public class KinesisMessiProducer implements MessiProducer {
     private final KinesisAsyncClient kinesisAsyncClient;
     private final String streamName;
     private final String topic;
+    private final ULID ulid = new ULID();
+    private final AtomicReference<ULID.Value> prevUlid = new AtomicReference<>(ulid.nextValue());
 
     public KinesisMessiProducer(KinesisAsyncClient kinesisAsyncClient, String streamName, String topic) {
         this.kinesisAsyncClient = kinesisAsyncClient;
@@ -59,6 +64,21 @@ public class KinesisMessiProducer implements MessiProducer {
                 if (!messiMessage.hasPartitionKey()) {
                     throw new IllegalArgumentException(String.format("Message at index %d is missing partition-key.", i));
                 }
+
+                ULID.Value ulid;
+                if (messiMessage.hasUlid()) {
+                    ulid = new ULID.Value(messiMessage.getUlid().getMsb(), messiMessage.getUlid().getLsb());
+                } else {
+                    ulid = MessiULIDUtils.nextMonotonicUlid(this.ulid, prevUlid.get());
+                    messiMessage = messiMessage.toBuilder()
+                            .setUlid(MessiUlid.newBuilder()
+                                    .setMsb(ulid.getMostSignificantBits())
+                                    .setLsb(ulid.getLeastSignificantBits())
+                                    .build())
+                            .build();
+                }
+                prevUlid.set(ulid);
+
                 String partitionKey = messiMessage.getPartitionKey();
                 byte[] messageBytes = messiMessage.toByteArray();
                 SdkBytes sdkBytes = SdkBytes.fromByteArrayUnsafe(messageBytes);
