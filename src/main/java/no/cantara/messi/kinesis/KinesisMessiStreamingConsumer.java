@@ -172,7 +172,7 @@ public class KinesisMessiStreamingConsumer implements MessiStreamingConsumer {
 
     @Override
     public MessiCursor currentPosition() {
-        return null;
+        throw new UnsupportedOperationException("TODO"); // TODO
     }
 
     @Override
