@@ -1,18 +1,17 @@
 package no.cantara.messi.kinesis;
 
 import no.cantara.messi.api.MessiClosedException;
-import no.cantara.messi.api.MessiConsumer;
+import no.cantara.messi.api.MessiCursor;
 import no.cantara.messi.api.MessiCursorStartingPointType;
+import no.cantara.messi.api.MessiStreamingConsumer;
 import no.cantara.messi.api.MessiULIDUtils;
 import no.cantara.messi.protos.MessiMessage;
-import no.cantara.messi.protos.MessiProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Objects;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -20,9 +19,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class KinesisMessiConsumer implements MessiConsumer {
+public class KinesisMessiStreamingConsumer implements MessiStreamingConsumer {
 
-    private static Logger log = LoggerFactory.getLogger(KinesisMessiConsumer.class);
+    private static Logger log = LoggerFactory.getLogger(KinesisMessiStreamingConsumer.class);
 
     static final Duration AT_ULID_TIMESTAMP_TOLERANCE = Duration.of(1, ChronoUnit.MINUTES);
 
@@ -36,7 +35,7 @@ public class KinesisMessiConsumer implements MessiConsumer {
     final AtomicBoolean initialBufferingEnabled = new AtomicBoolean();
     final BlockingDeque<MessiMessage> initialPositionLookaheadBuffer = new LinkedBlockingDeque<>();
 
-    public KinesisMessiConsumer(KinesisStreamingBuffer kinesisStreamingBuffer, String streamName, KinesisMessiCursor initialPosition, int pollIntervalMs) {
+    public KinesisMessiStreamingConsumer(KinesisStreamingBuffer kinesisStreamingBuffer, String streamName, KinesisMessiCursor initialPosition, int pollIntervalMs) {
         this.streamName = streamName;
         this.shardId = initialPosition.shardId;
         this.pollIntervalMs = pollIntervalMs;
@@ -172,6 +171,11 @@ public class KinesisMessiConsumer implements MessiConsumer {
     }
 
     @Override
+    public MessiCursor currentPosition() {
+        return null;
+    }
+
+    @Override
     public void seek(long timestamp) {
         if (closed.get()) {
             throw new MessiClosedException();
@@ -180,59 +184,6 @@ public class KinesisMessiConsumer implements MessiConsumer {
         kinesisConsumerBufferRef.get().seek(timestamp);
     }
 
-    @Override
-    public KinesisMessiCursor cursorAt(MessiMessage messiMessage) {
-        Objects.requireNonNull(messiMessage);
-        if (!messiMessage.hasProvider()) {
-            throw new IllegalArgumentException("Provided message does not have 'provider'");
-        }
-        MessiProvider provider = messiMessage.getProvider();
-        if (!provider.hasShardId()) {
-            throw new IllegalArgumentException("Provided message does not have 'provider.shardId'");
-        }
-        if (!provider.hasPublishedTimestamp()) {
-            throw new IllegalArgumentException("Provided message does not have 'provider.publishedTimestamp'");
-        }
-        if (!provider.hasSequenceNumber()) {
-            throw new IllegalArgumentException("Provided message does not have 'provider.sequenceNumber'");
-        }
-        if (!shardId.equals(provider.getShardId())) {
-            throw new IllegalArgumentException("The 'provider.shardId' of provided message does not match the shardId of the consumer");
-        }
-        return new KinesisMessiCursor.Builder()
-                .shardId(shardId)
-                .providerTimestamp(Instant.ofEpochMilli(provider.getPublishedTimestamp()))
-                .providerSequenceNumber(provider.getSequenceNumber())
-                .inclusive(true)
-                .build();
-    }
-
-    @Override
-    public KinesisMessiCursor cursorAfter(MessiMessage messiMessage) {
-        Objects.requireNonNull(messiMessage);
-        if (!messiMessage.hasProvider()) {
-            throw new IllegalArgumentException("Provided message does not have 'provider'");
-        }
-        MessiProvider provider = messiMessage.getProvider();
-        if (!provider.hasShardId()) {
-            throw new IllegalArgumentException("Provided message does not have 'provider.shardId'");
-        }
-        if (!provider.hasPublishedTimestamp()) {
-            throw new IllegalArgumentException("Provided message does not have 'provider.publishedTimestamp'");
-        }
-        if (!provider.hasSequenceNumber()) {
-            throw new IllegalArgumentException("Provided message does not have 'provider.sequenceNumber'");
-        }
-        if (!shardId.equals(provider.getShardId())) {
-            throw new IllegalArgumentException("The 'provider.shardId' of provided message does not match the shardId of the consumer");
-        }
-        return new KinesisMessiCursor.Builder()
-                .shardId(shardId)
-                .providerTimestamp(Instant.ofEpochMilli(provider.getPublishedTimestamp()))
-                .providerSequenceNumber(provider.getSequenceNumber())
-                .inclusive(false)
-                .build();
-    }
 
     @Override
     public boolean isClosed() {

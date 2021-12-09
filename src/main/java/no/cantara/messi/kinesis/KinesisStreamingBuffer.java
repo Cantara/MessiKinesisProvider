@@ -166,9 +166,19 @@ public class KinesisStreamingBuffer implements AutoCloseable {
                         String partitionKey = record.partitionKey();
                         SdkBytes data = record.data();
 
-                        MessiMessage messiMessage = MessiMessage.newBuilder()
-                                .mergeFrom(data.asByteArrayUnsafe())
+                        MessiMessage.Builder builder = MessiMessage.newBuilder()
+                                .mergeFrom(data.asByteArrayUnsafe());
+                        if (!builder.hasFirstProvider()) {
+                            builder.setFirstProvider(MessiProvider.newBuilder()
+                                    .setTechnology("Kinesis")
+                                    .setPublishedTimestamp(record.approximateArrivalTimestamp().toEpochMilli())
+                                    .setShardId(shardId)
+                                    .setSequenceNumber(sequenceNumber)
+                                    .build());
+                        }
+                        MessiMessage messiMessage = builder
                                 .setProvider(MessiProvider.newBuilder()
+                                        .setTechnology("Kinesis")
                                         .setPublishedTimestamp(record.approximateArrivalTimestamp().toEpochMilli())
                                         .setShardId(shardId)
                                         .setSequenceNumber(sequenceNumber)
