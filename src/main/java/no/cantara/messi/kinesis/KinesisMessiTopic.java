@@ -22,6 +22,7 @@ public class KinesisMessiTopic implements MessiTopic {
 
     private static Logger log = LoggerFactory.getLogger(KinesisMessiTopic.class);
 
+    final KinesisMessiClient messiClient;
     final String name;
     final KinesisAsyncClient kinesisAsyncClient;
     final String streamName;
@@ -30,7 +31,8 @@ public class KinesisMessiTopic implements MessiTopic {
     final Map<String, KinesisMessiShard> shardById = new ConcurrentHashMap<>();
     final CopyOnWriteArrayList<KinesisMessiProducer> producers = new CopyOnWriteArrayList<>();
 
-    public KinesisMessiTopic(String name, KinesisAsyncClient kinesisAsyncClient, String streamName) {
+    public KinesisMessiTopic(KinesisMessiClient messiClient, String name, KinesisAsyncClient kinesisAsyncClient, String streamName) {
+        this.messiClient = messiClient;
         this.name = name;
         this.kinesisAsyncClient = kinesisAsyncClient;
         this.streamName = streamName;
@@ -72,12 +74,17 @@ public class KinesisMessiTopic implements MessiTopic {
 
     @Override
     public MessiShard shardOf(String shardId) {
-        return shardById.computeIfAbsent(shardId, sid -> new KinesisMessiShard(sid, kinesisAsyncClient, streamName, name));
+        return shardById.computeIfAbsent(shardId, sid -> new KinesisMessiShard(this, sid, kinesisAsyncClient, streamName, name));
     }
 
     @Override
     public MessiMetadataClient metadata() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public KinesisMessiClient client() {
+        return messiClient;
     }
 
     @Override

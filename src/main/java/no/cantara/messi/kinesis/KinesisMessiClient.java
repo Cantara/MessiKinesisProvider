@@ -35,7 +35,7 @@ public class KinesisMessiClient implements MessiClient {
 
     @Override
     public MessiTopic topicOf(String name) {
-        return topicByName.computeIfAbsent(name, topicName -> new KinesisMessiTopic(topicName, kinesisAsyncClient, streamName));
+        return topicByName.computeIfAbsent(name, topicName -> new KinesisMessiTopic(this, topicName, kinesisAsyncClient, streamName));
     }
 
     @Override

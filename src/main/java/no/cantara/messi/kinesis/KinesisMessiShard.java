@@ -28,6 +28,7 @@ public class KinesisMessiShard implements MessiShard {
     static final ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2, runnable ->
             new Thread(runnable, "scheduled-kinesis-consumer-" + nextScheduledThreadId.incrementAndGet()));
 
+    final KinesisMessiTopic messiTopic;
     final String shardId;
     final KinesisAsyncClient kinesisAsyncClient;
     final String streamName;
@@ -37,7 +38,8 @@ public class KinesisMessiShard implements MessiShard {
 
     final AtomicBoolean closed = new AtomicBoolean();
 
-    public KinesisMessiShard(String shardId, KinesisAsyncClient kinesisAsyncClient, String streamName, String topicName) {
+    public KinesisMessiShard(KinesisMessiTopic messiTopic, String shardId, KinesisAsyncClient kinesisAsyncClient, String streamName, String topicName) {
+        this.messiTopic = messiTopic;
         this.shardId = shardId;
         this.kinesisAsyncClient = kinesisAsyncClient;
         this.streamName = streamName;
@@ -59,7 +61,7 @@ public class KinesisMessiShard implements MessiShard {
         }
         KinesisMessiCursor initialPosition = (KinesisMessiCursor) cursor;
         KinesisStreamingBuffer kinesisConsumerBuffer = new KinesisStreamingBuffer(scheduledExecutor, kinesisAsyncClient, streamName, initialPosition.shardId, 1000, Duration.of(1, ChronoUnit.MINUTES), initialPosition);
-        KinesisMessiStreamingConsumer consumer = new KinesisMessiStreamingConsumer(kinesisConsumerBuffer, topicName, initialPosition, 1000);
+        KinesisMessiStreamingConsumer consumer = new KinesisMessiStreamingConsumer(this, kinesisConsumerBuffer, topicName, initialPosition, 1000);
         consumers.add(consumer);
         return consumer;
     }
@@ -159,7 +161,12 @@ public class KinesisMessiShard implements MessiShard {
     }
 
     @Override
-    public void close() throws Exception {
+    public KinesisMessiTopic topic() {
+        return messiTopic;
+    }
+
+    @Override
+    public void close() {
         closed.set(true);
         for (KinesisMessiStreamingConsumer consumer : consumers) {
             consumer.close();

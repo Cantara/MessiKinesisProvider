@@ -26,6 +26,7 @@ public class KinesisMessiStreamingConsumer implements MessiStreamingConsumer {
     static final Duration AT_ULID_TIMESTAMP_TOLERANCE = Duration.of(1, ChronoUnit.MINUTES);
 
     final AtomicBoolean closed = new AtomicBoolean();
+    final KinesisMessiShard messiShard;
     final String streamName;
     final AtomicReference<KinesisStreamingBuffer> kinesisConsumerBufferRef = new AtomicReference<>();
     final String shardId;
@@ -35,7 +36,8 @@ public class KinesisMessiStreamingConsumer implements MessiStreamingConsumer {
     final AtomicBoolean initialBufferingEnabled = new AtomicBoolean();
     final BlockingDeque<MessiMessage> initialPositionLookaheadBuffer = new LinkedBlockingDeque<>();
 
-    public KinesisMessiStreamingConsumer(KinesisStreamingBuffer kinesisStreamingBuffer, String streamName, KinesisMessiCursor initialPosition, int pollIntervalMs) {
+    public KinesisMessiStreamingConsumer(KinesisMessiShard messiShard, KinesisStreamingBuffer kinesisStreamingBuffer, String streamName, KinesisMessiCursor initialPosition, int pollIntervalMs) {
+        this.messiShard = messiShard;
         this.streamName = streamName;
         this.shardId = initialPosition.shardId;
         this.pollIntervalMs = pollIntervalMs;
@@ -182,6 +184,11 @@ public class KinesisMessiStreamingConsumer implements MessiStreamingConsumer {
         }
 
         kinesisConsumerBufferRef.get().seek(timestamp);
+    }
+
+    @Override
+    public KinesisMessiShard shard() {
+        return messiShard;
     }
 
 
