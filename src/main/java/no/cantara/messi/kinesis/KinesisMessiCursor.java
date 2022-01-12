@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import de.huxhorn.sulky.ulid.ULID;
 import no.cantara.messi.api.MessiCursor;
 import no.cantara.messi.api.MessiCursorStartingPointType;
+import no.cantara.messi.api.MessiNotCompatibleCursorException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -64,6 +65,36 @@ class KinesisMessiCursor implements MessiCursor {
         node.put("sequenceNumber", sequenceNumber);
         node.put("inclusive", inclusive);
         return node.toString();
+    }
+
+    @Override
+    public int compareTo(MessiCursor _o) throws NullPointerException, MessiNotCompatibleCursorException {
+        Objects.requireNonNull(_o);
+        if (!getClass().equals(_o.getClass())) {
+            throw new MessiNotCompatibleCursorException(String.format("Cursor classes are not compatible. this.getClass(): %s, other.getClass(): %s", getClass(), _o.getClass()));
+        }
+        if (type != MessiCursorStartingPointType.AT_PROVIDER_SEQUENCE || sequenceNumber == null || shardId == null) {
+            throw new MessiNotCompatibleCursorException(String.format("This cursor must have this.type=%s to be compared and this.sequenceNumber must be non-null and this.shardId must be non-null.", MessiCursorStartingPointType.AT_PROVIDER_SEQUENCE));
+        }
+        KinesisMessiCursor o = (KinesisMessiCursor) _o;
+        if (o.type != MessiCursorStartingPointType.AT_PROVIDER_SEQUENCE || o.sequenceNumber == null || o.shardId == null) {
+            throw new MessiNotCompatibleCursorException(String.format("Other cursor must have other.type=%s to be compared and other.sequenceNumber must be non-null and other.shardId must be non-null.", MessiCursorStartingPointType.AT_PROVIDER_SEQUENCE));
+        }
+        if (!shardId.equals(o.shardId)) {
+            throw new MessiNotCompatibleCursorException(String.format("shardId of this cursor and other cursor does not match. this.shardId: %s, other.shardId: %s", shardId, o.shardId));
+        }
+        int comparison = sequenceNumber.compareTo(o.sequenceNumber);
+        if (comparison != 0) {
+            return comparison;
+        }
+        if (inclusive == o.inclusive) {
+            return 0;
+        }
+        if (inclusive) {
+            return -1;
+        } else {
+            return 1;
+        }
     }
 
     static class Builder implements MessiCursor.Builder {

@@ -11,15 +11,37 @@ import java.util.List;
 class KinesisShardStream {
 
     final String shardId;
-    final List<Record> records = new ArrayList<>(1000);
+    final List<Record> records = new ArrayList<>(10000);
 
     KinesisShardStream(String shardId) {
         this.shardId = shardId;
     }
 
+    String toSequenceNumber(int index) {
+        String sequenceNumber = String.format("%012d", index);
+        return sequenceNumber;
+    }
+
+    int toIndex(String sequenceNumber) {
+        String sequenceNumberWithoutLeadingZeros = trimLeadingZeros(sequenceNumber);
+        int index = Integer.parseInt(sequenceNumberWithoutLeadingZeros);
+        return index;
+    }
+
+    String trimLeadingZeros(String sequenceNumber) {
+        for (int i = 0; i < sequenceNumber.length(); i++) {
+            char c = sequenceNumber.charAt(i);
+            if (c != '0') {
+                String sequenceNumberWithoutLeadingZeros = sequenceNumber.substring(i);
+                return sequenceNumberWithoutLeadingZeros;
+            }
+        }
+        return "0";
+    }
+
     String add(SdkBytes data, String partitionKey) {
         synchronized (records) {
-            String sequenceNumber = String.valueOf(records.size());
+            String sequenceNumber = nextSequenceNumber();
             records.add(Record.builder()
                     .data(data)
                     .encryptionType(EncryptionType.NONE)
@@ -37,7 +59,7 @@ class KinesisShardStream {
 
     String nextSequenceNumber() {
         synchronized (records) {
-            return String.valueOf(records.size());
+            return toSequenceNumber(records.size());
         }
     }
 
@@ -49,16 +71,17 @@ class KinesisShardStream {
                     return record.sequenceNumber();
                 }
             }
-            return String.valueOf(records.size());
+            return nextSequenceNumber();
         }
     }
 
     public String sequenceNumberAfter(String sequenceNumber) {
-        return String.valueOf(Integer.parseInt(sequenceNumber) + 1);
+        int index = toIndex(sequenceNumber);
+        return toSequenceNumber(index + 1);
     }
 
     public List<Record> getRecords(String sequenceNumber, int limit) {
-        int index = Integer.parseInt(sequenceNumber);
+        int index = toIndex(sequenceNumber);
         List<Record> result = new ArrayList<>(limit);
         synchronized (records) {
             for (int i = 0; i < limit && index + i < records.size(); i++) {
@@ -70,7 +93,7 @@ class KinesisShardStream {
     }
 
     public int messagesBehindCurrent(String sequenceNumber) {
-        int index = Integer.parseInt(sequenceNumber);
+        int index = toIndex(sequenceNumber);
         int behind = records.size() - index - 1;
         return behind;
     }
