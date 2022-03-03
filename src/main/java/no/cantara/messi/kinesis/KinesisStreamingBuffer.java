@@ -13,6 +13,7 @@ import software.amazon.awssdk.services.kinesis.model.GetRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.GetRecordsResponse;
 import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
 import software.amazon.awssdk.services.kinesis.model.GetShardIteratorResponse;
+import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
 import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 
@@ -120,15 +121,29 @@ public class KinesisStreamingBuffer implements AutoCloseable {
                         if (throwable instanceof ExpiredIteratorException) {
                             log.info("Kinesis shard-iterator expired, trying again.");
                             nextShardIterator = nextShardIteratorSupplier.get();
+                            pendingRecordsRequest = null;
+                            scheduledFuture = scheduledExecutor.schedule(this::triggerAsyncFill, pollIntervalMs, TimeUnit.MILLISECONDS);
+                            return response;
+                        }
+                        if (throwable instanceof ProvisionedThroughputExceededException) {
+                            // too many calls to idle Kinesis stream, wait extra long before next call
+                            log.error(String.format("While handling Kinesis get-records response. shardId=%s, shardIterator=%s",
+                                    shardId, pendingRecordsRequest.shardIterator()), throwable);
+                            pendingRecordsRequest = null;
+                            scheduledFuture = scheduledExecutor.schedule(this::triggerAsyncFill, 3 * pollIntervalMs, TimeUnit.MILLISECONDS);
                             return response;
                         }
                         log.error(String.format("While handling Kinesis get-records response. shardId=%s, shardIterator=%s",
                                 shardId, pendingRecordsRequest.shardIterator()), throwable);
+                        pendingRecordsRequest = null;
+                        scheduledFuture = scheduledExecutor.schedule(this::triggerAsyncFill, pollIntervalMs, TimeUnit.MILLISECONDS);
                         return response;
                     }
                     if (!response.sdkHttpResponse().isSuccessful()) {
                         log.error("While processing http response from getting Kinesis records. shardId={}, shardIterator={}, statusCode={}, statusText={}",
                                 shardId, pendingRecordsRequest.shardIterator(), response.sdkHttpResponse().statusCode(), response.sdkHttpResponse().statusText());
+                        pendingRecordsRequest = null;
+                        scheduledFuture = scheduledExecutor.schedule(this::triggerAsyncFill, pollIntervalMs, TimeUnit.MILLISECONDS);
                         return response;
                     }
 
@@ -143,8 +158,8 @@ public class KinesisStreamingBuffer implements AutoCloseable {
                             log.error("Got NULL instead of next-shard iterator, we will use the same shard-iterator again.");
                         }
 
+                        pendingRecordsRequest = null;
                         long millisBehindLatest = response.millisBehindLatest();
-
                         if (millisBehindLatest < pollIntervalMs) {
                             scheduledFuture = scheduledExecutor.schedule(this::triggerAsyncFill, pollIntervalMs - millisBehindLatest, TimeUnit.MILLISECONDS);
                         } else {

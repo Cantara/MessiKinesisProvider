@@ -22,20 +22,22 @@ public class KinesisMessiClient implements MessiClient {
     final KinesisAsyncClient kinesisAsyncClient;
     final String streamName;
     final Path kinesisCheckpointsFolder;
+    final int pollIntervalMs;
 
     final AtomicBoolean closed = new AtomicBoolean();
 
     final Map<String, KinesisMessiTopic> topicByName = new ConcurrentHashMap<>();
 
-    public KinesisMessiClient(KinesisAsyncClient kinesisAsyncClient, String streamName, Path kinesisCheckpointsFolder) {
+    public KinesisMessiClient(KinesisAsyncClient kinesisAsyncClient, String streamName, Path kinesisCheckpointsFolder, int pollIntervalMs) {
         this.kinesisAsyncClient = kinesisAsyncClient;
         this.streamName = streamName;
         this.kinesisCheckpointsFolder = kinesisCheckpointsFolder;
+        this.pollIntervalMs = pollIntervalMs;
     }
 
     @Override
     public MessiTopic topicOf(String name) {
-        return topicByName.computeIfAbsent(name, topicName -> new KinesisMessiTopic(this, topicName, kinesisAsyncClient, streamName));
+        return topicByName.computeIfAbsent(name, topicName -> new KinesisMessiTopic(this, topicName, kinesisAsyncClient, streamName, pollIntervalMs));
     }
 
     @Override

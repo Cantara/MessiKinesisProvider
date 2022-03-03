@@ -16,6 +16,7 @@ import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
 import software.amazon.awssdk.services.kinesis.model.GetShardIteratorResponse;
 import software.amazon.awssdk.services.kinesis.model.ListStreamsRequest;
 import software.amazon.awssdk.services.kinesis.model.ListStreamsResponse;
+import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
@@ -31,12 +32,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class KinesisAsyncClientSimulator implements KinesisAsyncClient {
 
     private static Logger log = LoggerFactory.getLogger(KinesisMessiClient.class);
 
+    final AtomicBoolean triggerGetRecordsRateLimitExceeded = new AtomicBoolean();
     final AtomicInteger nextShardId = new AtomicInteger(1);
     final Map<String, List<Shard>> shardsByStreamName = new ConcurrentHashMap<>();
     final Map<String, KinesisShardStream> streamByShardId = new ConcurrentHashMap<>();
@@ -46,11 +49,15 @@ public class KinesisAsyncClientSimulator implements KinesisAsyncClient {
             Shard shard = Shard.builder()
                     .shardId(String.valueOf(nextShardId.getAndIncrement()))
                     .build();
-            streamByShardId.computeIfAbsent(shard.shardId(), KinesisShardStream::new);
+            streamByShardId.computeIfAbsent(shard.shardId(), shardId -> new KinesisShardStream(streamName, shardId));
             List<Shard> result = new ArrayList<>(1);
             result.add(shard);
             return result;
         });
+    }
+
+    public void triggerRateLimitExceededOnNextGetRecordsCall() {
+        triggerGetRecordsRateLimitExceeded.set(true);
     }
 
     @Override
@@ -81,7 +88,7 @@ public class KinesisAsyncClientSimulator implements KinesisAsyncClient {
             Shard shard = Shard.builder()
                     .shardId(String.valueOf(nextShardId.getAndIncrement()))
                     .build();
-            streamByShardId.computeIfAbsent(shard.shardId(), KinesisShardStream::new);
+            streamByShardId.computeIfAbsent(shard.shardId(), shardId -> new KinesisShardStream(streamName, shardId));
             List<Shard> result = new ArrayList<>(1);
             result.add(shard);
             return result;
@@ -171,6 +178,15 @@ public class KinesisAsyncClientSimulator implements KinesisAsyncClient {
         if (kinesisStream == null) {
             throw new IllegalArgumentException("Kinesis shard does not exists: '" + shardId + "'");
         }
+
+        if (triggerGetRecordsRateLimitExceeded.compareAndSet(true, false)) {
+            CompletableFuture<GetRecordsResponse> result = new CompletableFuture<>();
+            result.completeExceptionally(ProvisionedThroughputExceededException.builder()
+                    .message(String.format("Rate exceeded for shard %s in stream %s under account messi-kinesis-simulator. (Service: Kinesis-Simulator, Status Code: 400, Request ID: N/A, Extended Request ID: N/A)", shardId, kinesisStream.getStreamName()))
+                    .build());
+            return result;
+        }
+
         List<Record> records = kinesisStream.getRecords(sequenceNumber, getRecordsRequest.limit());
         GetRecordsResponse.Builder responseBuilder = GetRecordsResponse.builder();
         responseBuilder.sdkHttpResponse(SdkHttpResponse.builder().statusCode(200).build());

@@ -10,11 +10,21 @@ import java.util.List;
 
 class KinesisShardStream {
 
+    final String streamName;
     final String shardId;
     final List<Record> records = new ArrayList<>(10000);
 
-    KinesisShardStream(String shardId) {
+    KinesisShardStream(String streamName, String shardId) {
+        this.streamName = streamName;
         this.shardId = shardId;
+    }
+
+    String getStreamName() {
+        return streamName;
+    }
+
+    String getShardId() {
+        return shardId;
     }
 
     String toSequenceNumber(int index) {

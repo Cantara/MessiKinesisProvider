@@ -26,16 +26,18 @@ public class KinesisMessiTopic implements MessiTopic {
     final String name;
     final KinesisAsyncClient kinesisAsyncClient;
     final String streamName;
+    final int pollIntervalMs;
 
     final AtomicBoolean closed = new AtomicBoolean();
     final Map<String, KinesisMessiShard> shardById = new ConcurrentHashMap<>();
     final CopyOnWriteArrayList<KinesisMessiProducer> producers = new CopyOnWriteArrayList<>();
 
-    public KinesisMessiTopic(KinesisMessiClient messiClient, String name, KinesisAsyncClient kinesisAsyncClient, String streamName) {
+    public KinesisMessiTopic(KinesisMessiClient messiClient, String name, KinesisAsyncClient kinesisAsyncClient, String streamName, int pollIntervalMs) {
         this.messiClient = messiClient;
         this.name = name;
         this.kinesisAsyncClient = kinesisAsyncClient;
         this.streamName = streamName;
+        this.pollIntervalMs = pollIntervalMs;
     }
 
     @Override
@@ -74,7 +76,7 @@ public class KinesisMessiTopic implements MessiTopic {
 
     @Override
     public MessiShard shardOf(String shardId) {
-        return shardById.computeIfAbsent(shardId, sid -> new KinesisMessiShard(this, sid, kinesisAsyncClient, streamName, name));
+        return shardById.computeIfAbsent(shardId, sid -> new KinesisMessiShard(this, sid, kinesisAsyncClient, streamName, name, pollIntervalMs));
     }
 
     @Override

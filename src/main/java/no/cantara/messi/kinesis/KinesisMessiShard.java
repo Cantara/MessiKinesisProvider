@@ -37,13 +37,15 @@ public class KinesisMessiShard implements MessiShard {
     final CopyOnWriteArrayList<KinesisMessiStreamingConsumer> consumers = new CopyOnWriteArrayList<>();
 
     final AtomicBoolean closed = new AtomicBoolean();
+    final int pollIntervalMs;
 
-    public KinesisMessiShard(KinesisMessiTopic messiTopic, String shardId, KinesisAsyncClient kinesisAsyncClient, String streamName, String topicName) {
+    public KinesisMessiShard(KinesisMessiTopic messiTopic, String shardId, KinesisAsyncClient kinesisAsyncClient, String streamName, String topicName, int pollIntervalMs) {
         this.messiTopic = messiTopic;
         this.shardId = shardId;
         this.kinesisAsyncClient = kinesisAsyncClient;
         this.streamName = streamName;
         this.topicName = topicName;
+        this.pollIntervalMs = pollIntervalMs;
     }
 
     @Override
@@ -60,8 +62,8 @@ public class KinesisMessiShard implements MessiShard {
             throw new IllegalArgumentException("cursor must be of type " + KinesisMessiCursor.class.getName());
         }
         KinesisMessiCursor initialPosition = (KinesisMessiCursor) cursor;
-        KinesisStreamingBuffer kinesisConsumerBuffer = new KinesisStreamingBuffer(scheduledExecutor, kinesisAsyncClient, streamName, initialPosition.shardId, 1000, Duration.of(1, ChronoUnit.MINUTES), initialPosition);
-        KinesisMessiStreamingConsumer consumer = new KinesisMessiStreamingConsumer(this, kinesisConsumerBuffer, topicName, initialPosition, 1000);
+        KinesisStreamingBuffer kinesisConsumerBuffer = new KinesisStreamingBuffer(scheduledExecutor, kinesisAsyncClient, streamName, initialPosition.shardId, pollIntervalMs, Duration.of(1, ChronoUnit.MINUTES), initialPosition);
+        KinesisMessiStreamingConsumer consumer = new KinesisMessiStreamingConsumer(this, kinesisConsumerBuffer, topicName, initialPosition, pollIntervalMs);
         consumers.add(consumer);
         return consumer;
     }

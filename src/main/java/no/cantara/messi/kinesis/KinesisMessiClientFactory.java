@@ -61,6 +61,8 @@ public class KinesisMessiClientFactory implements MessiClientFactory {
 
         Path kinesisCheckpointsFolder = Paths.get(configuration.get("checkpoints.folder"));
 
-        return new KinesisMessiClient(kinesisAsyncClient, streamName, kinesisCheckpointsFolder);
+        int pollIntervalMs = configuration.asInt("poll-interval", 1000);
+
+        return new KinesisMessiClient(kinesisAsyncClient, streamName, kinesisCheckpointsFolder, pollIntervalMs);
     }
 }
