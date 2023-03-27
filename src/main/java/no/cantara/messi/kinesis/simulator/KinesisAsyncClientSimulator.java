@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.KinesisServiceClientConfiguration;
 import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.CreateStreamResponse;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
@@ -244,4 +245,10 @@ public class KinesisAsyncClientSimulator implements KinesisAsyncClient {
                 .records(responseRecordEntries)
                 .build());
     }
+
+    @Override
+    public final KinesisServiceClientConfiguration serviceClientConfiguration() {
+        return  KinesisServiceClientConfiguration.builder().build();
+    }
+
 }
