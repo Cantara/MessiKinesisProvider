@@ -4,7 +4,7 @@
 
     <groupId>no.cantara.messi</groupId>
     <artifactId>messi-kinesis-provider</artifactId>
-    <version>0.8.52</version>
+    <version>0.8.53-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Messi Kinesis Provider</name>
@@ -38,7 +38,7 @@
         <connection>scm:git:git://github.com/Cantara/MessiKinesisProvider.git</connection>
         <developerConnection>scm:git:git@github.com:Cantara/MessiKinesisProvider.git</developerConnection>
         <url>https://github.com/Cantara/MessiKinesisProvider/tree/master</url>
-        <tag>messi-kinesis-provider-0.8.52</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <dependencyManagement>
