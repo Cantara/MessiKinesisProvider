@@ -3,6 +3,7 @@ module messi.provider.kinesis {
     requires property.config;
 
     requires org.slf4j;
+    requires com.fasterxml.jackson.annotation;
     requires com.fasterxml.jackson.databind;
     requires com.fasterxml.jackson.datatype.jsr310;
     requires de.huxhorn.sulky.ulid;
@@ -19,5 +20,4 @@ module messi.provider.kinesis {
 
     exports no.cantara.messi.kinesis;
     exports no.cantara.messi.kinesis.simulator;
-    exports com.fasterxml.jackson.annotation;
 }
