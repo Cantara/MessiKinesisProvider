@@ -1,2 +1,3 @@
+![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/Cantara/MessiKinesisProvider) ![Build Status](https://jenkins.cantara.no/buildStatus/icon?job=Messi%20KinesisProvider) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/Cantara/MessiKinesisProvider?foo=bar) [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](http://www.repostatus.org/badges/latest/active.svg)](http://www.repostatus.org/#active) [![Known Vulnerabilities](https://snyk.io/test/github/Cantara/MessiKinesisProvider/badge.svg)](https://snyk.io/test/github/Cantara/MessiKinesisProvider)
 # MessiKinesisProvider
 Kinesis provider for the Messi messaging and streaming abstraction
