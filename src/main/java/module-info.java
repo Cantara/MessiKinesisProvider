@@ -19,4 +19,5 @@ module messi.provider.kinesis {
 
     exports no.cantara.messi.kinesis;
     exports no.cantara.messi.kinesis.simulator;
+    exports com.fasterxml.jackson.annotation;
 }
