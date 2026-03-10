@@ -1,0 +1,25 @@
+id: messi-kinesis-provider
+name: Messi Kinesis Provider
+version: 0.8.8-SNAPSHOT
+description: |
+  AWS Kinesis backend implementation for the Messi event-streaming SDK. Routes
+  Messi producer and consumer calls to Amazon Kinesis Data Streams, enabling
+  cloud-scale event streaming with Messi's unified API.
+units:
+  - id: kinesis-client
+    name: Kinesis Client
+    type: component
+    description: KinesisMessiClient — implements MessiClient against Amazon Kinesis Data Streams.
+    path: src/main/java/no/cantara/messi
+  - id: kinesis-producer
+    name: Kinesis Producer
+    type: component
+    description: Kinesis shard producer — batches and publishes records to Kinesis streams.
+  - id: kinesis-consumer
+    name: Kinesis Consumer
+    type: component
+    description: Kinesis shard consumer with checkpoint management for reliable at-least-once delivery.
+  - id: config
+    name: Configuration
+    type: component
+    description: AWS credentials, region, and Kinesis stream configuration binding.
