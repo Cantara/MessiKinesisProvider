@@ -1,4 +1,4 @@
-kcp_version: "0.21"
+kcp_version: "0.26"
 updated: "2026-06-20"
 language: en
 license: "Apache-2.0"
@@ -25,27 +25,23 @@ units:
     type: component
     description: KinesisMessiClient — implements MessiClient against Amazon Kinesis Data Streams.
     path: src/main/java/no/cantara/messi
-      content_hash:
-        algorithm: sha256
-        value: ""
   - id: kinesis-producer
     name: Kinesis Producer
     type: component
     description: Kinesis shard producer — batches and publishes records to Kinesis streams.
-      content_hash:
-        algorithm: sha256
-        value: ""
   - id: kinesis-consumer
     name: Kinesis Consumer
     type: component
     description: Kinesis shard consumer with checkpoint management for reliable at-least-once delivery.
-      content_hash:
-        algorithm: sha256
-        value: ""
   - id: config
     name: Configuration
     type: component
     description: AWS credentials, region, and Kinesis stream configuration binding.
-      content_hash:
-        algorithm: sha256
-        value: ""
+
+# Serving Endpoint Binding (KCP SPEC v0.26 §3.12): authoritative manifest URL
+# and authorized MCP representative. Ignored by pre-0.26 verifiers.
+serving:
+  manifest:
+    - https://raw.githubusercontent.com/Cantara/MessiKinesisProvider/main/knowledge.yaml
+  mcp:
+    - https://mcp.cantara.no/mcp
